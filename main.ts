@@ -28,7 +28,7 @@ const textDecoder = new TextDecoder()
 const socket = new WebSocket(
     "wss://" +
         Deno.env.get("SERVER_HOST") +
-        ":7531/connect?module=moduleTemplate&secret=" +
+        ":7531/connect?module=moduleTemplate&events=&secret=" +
         encodeURIComponent(Deno.env.get("CONNECTION_SECRET")!),
 )
 
@@ -36,16 +36,28 @@ socket.addEventListener("open", () => {
     console.log("Socket open")
 })
 
+let xoxb = ""
+
 socket.addEventListener("message", async (ev) => {
-    const encryptedKey = await ev.data.arrayBuffer()
-    console.log(
-        "Connected, got key: " +
-            textDecoder.decode(
-                await crypto.subtle.decrypt(
-                    { name: "RSA-OAEP" },
-                    keyPair.private,
-                    encryptedKey,
-                ),
+    let data = ""
+    if (typeof ev.data == "string") {
+        data = ev.data
+    } else {
+        const encryptedData = await ev.data.arrayBuffer()
+        data = textDecoder.decode(
+            await crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                keyPair.private,
+                encryptedData,
             ),
-    )
+        )
+    }
+    if (data.startsWith("xoxb-")) {
+        xoxb = data
+    }
+    if (data.startsWith("event {")) {
+        const eventData = JSON.parse(
+            data.split("event ").slice(1).join("event "),
+        )
+    }
 })
